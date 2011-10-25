@@ -1,0 +1,469 @@
+<html>
+	<head>
+		<title>Sprite Chart</title>
+		<style type="text/css">
+			* {margin: 0; padding: 0;}
+			html, body {height: 100%; width: 100%;}
+			table {table-layout: fixed; border-collapse: collapse; border: 2px solid #ccc; float: left; margin-right: 10px;}
+			td {border-right: 1px solid #eaeaea; border-bottom: 1px solid #eaeaea; font-size: 8px; font-family: Arial, sans-serif; text-align: center; color: #999;}
+			td.separator {border-right: 1px solid #ccc;}
+			td.header {border-bottom: 2px solid #ccc;}
+			td.gridCell {cursor: pointer;}
+			td.palette {border: 2px solid #ccc; cursor: pointer;}
+			.button {margin-right: 20px; width: 80px; height: 25px;}
+			table#tblSpriteColors,
+			table#tblCompleteColors {margin-top: 10px; display: block; clear: both;}
+			div#btnContainer, 
+			div#gridContainer,
+			div#paletteContainer,
+			div#txtContainer {overflow: hidden; width: 100%; margin: 10px;}
+			div#txtChar {margin-top: 10px; border: 1px solid #ccc; width: 500px; height: 100px; font-size: 14px; font-family: Arial, sans-serif; color: #999; white-space: pre; white-space: pre-wrap;  white-space: pre-line;  white-space: -pre-wrap; white-space: -o-pre-wrap;  white-space: -moz-pre-wrap;  word-wrap: break-word;}
+		</style>
+		<script type="text/javascript">
+
+		    window.onload = function () {
+
+		        // <<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>
+		        //	Architectural code
+		        // <<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>			
+		        // 16 colors C64 palette + transparency
+		        var arrColors = ["transparent",
+								    "rgb(0,0,0)",
+								    "rgb(255,255,255)",
+								    "rgb(104,55,43)",
+								    "rgb(112,164,178)",
+								    "rgb(111,61,134)",
+								    "rgb(88,141,67)",
+								    "rgb(53,40,121)",
+								    "rgb(184,199,111)",
+								    "rgb(111,79,37)",
+								    "rgb(67,57,0)",
+								    "rgb(154,103,89)",
+								    "rgb(68,68,68)",
+								    "rgb(108,108,108)",
+								    "rgb(154,210,132)",
+								    "rgb(108,94,181)",
+								    "rgb(149,149,149)"];
+
+		        var tr,
+					td,
+					bitMax,
+					pixelSize = 16,
+					numberCodesCols = 3,
+					colsLR = 24,
+					rowsLR = 21,
+					colsHR = 12,
+					rowsHR = 21,
+					bitMaxLR = 128,
+					bitMaxHR = 192,
+                    microColLR = 8,
+                    microColHR = 4,
+					SpritePalette = [{ set: true, color: arrColors[0] }, { set: false, color: arrColors[0] }, { set: false, color: arrColors[0] }, { set: false, color: arrColors[0]}],
+					pencil = { index: 0, color: arrColors[0] },
+					body = document.body;
+
+		        // draw a grid
+		        var drawBitGrid = function (tblID, rows, cols, appendTo) {
+
+		            var objTable = document.getElementById(tblID);
+		            if (objTable == null) {
+		                objTable = createEL({ tag: "table",
+		                    id: tblID,
+		                    appendTo: appendTo
+		                });
+		            }
+
+		            // bit type
+		            if (objTable.id == "gridLR") bitMax = bitMaxLR;
+		            if (objTable.id == "gridHR") bitMax = bitMaxHR;
+
+		            // HEADER: binary values header cells
+		            var tHead = objTable.createTHead();
+		            tr = tHead.insertRow(-1);
+		            for (var c = 0; c < cols; c++) {
+		                td = tr.insertCell(-1);
+		                td.className = objTable.id + " header";
+
+		                switch (objTable.id) {
+		                    case "gridLR":
+		                        td.style.width = td.style.height = pixelSize;
+		                        if (c == 7 || c == 15 || c == 23) td.className = td.className + " separator";
+		                        "innerText" in td ? td.innerText = bitMax : td.textContent = bitMax;
+		                        if (bitMax == 1) bitMax = bitMaxLR;
+		                        else bitMax = bitMax / 2;
+		                        break;
+		                    case "gridHR":
+		                        td.style.width = pixelSize * 2;
+		                        td.style.height = pixelSize;
+		                        if (c == 3 || c == 7 || c == 11) td.className = td.className + " separator";
+		                        "innerText" in td ? td.innerText = bitMax : td.textContent = bitMax;
+		                        if (bitMax == 3) bitMax = bitMaxHR;
+		                        else bitMax = bitMax / 4;
+		                        break;
+		                }
+		            }
+
+		            td = tr.insertCell(-1);
+		            td.colSpan = "3";
+		            "innerText" in td ? td.innerText = "number codes" : td.textContent = "number codes";
+		            td.className = objTable.id + " header";
+		            td.style.width = pixelSize * 6;
+
+
+		            // BODY: grid cells
+		            var tBody = createEL({ tag: "tbody",
+		                appendTo: objTable
+		            });
+
+		            for (var r = 0; r < rows; r++) {
+		                tr = tBody.insertRow(-1);
+		                tr.id = objTable.id + '_' + r;
+		                tr.setAttribute("r", r);
+
+		                for (var c = 0; c < cols; c++) {
+		                    td = tr.insertCell(-1);
+		                    td.id = objTable.id + '_' + r + '_' + c;
+		                    td.className = "gridCell";
+		                    td.setAttribute("tbl", objTable.id);
+		                    td.setAttribute("r", r);
+		                    td.setAttribute("c", c);
+		                    td.setAttribute("paletteIdx", "0");
+
+		                    if (objTable.id == "gridLR") td.setAttribute("macrocolumn", Math.floor((c / microColLR)));
+		                    if (objTable.id == "gridHR") td.setAttribute("macrocolumn", Math.floor((c / microColHR)));
+
+		                    td.onmouseup = setPixel;
+
+		                    switch (objTable.id) {
+		                        case "gridLR":
+		                            td.style.width = td.style.height = pixelSize;
+		                            if (c == 7 || c == 15 || c == 23) td.className = td.className + " separator";
+		                            break;
+		                        case "gridHR":
+		                            td.style.width = pixelSize * 2;
+		                            td.style.height = pixelSize;
+		                            if (c == 3 || c == 7 || c == 11) td.className = td.className + " separator";
+		                            break;
+		                    }
+		                }
+
+		                // add number codes columns
+		                for (var c = 0; c < numberCodesCols; c++) {
+		                    td = tr.insertCell(-1);
+		                    td.id = objTable.id + '_' + "nc" + '_' + r + '_' + c;
+		                    td.className = objTable.id;
+		                    td.setAttribute("colType", "numberCode");
+		                    "innerText" in td ? td.innerText = "0" : td.textContent = "0";
+		                    td.style.width = pixelSize * 2;
+		                }
+		            }
+
+		        };
+
+		        // set pixel color number code
+		        var setPixel = function (e) {
+		            if (window.event) e = window.event;
+		            var srcE = e.srcElement ? e.srcElement : e.target;
+		            var tbl = srcE.getAttribute("tbl");
+
+		            // if color picked same as cell => transparent
+		            if (pencil.index == srcE.getAttribute("paletteIdx")) {
+		                srcE.setAttribute("paletteIdx", 0);
+		                srcE.style.background = arrColors[0];
+		            }
+		            else {
+		                srcE.setAttribute("paletteIdx", pencil.index);
+		                srcE.style.background = pencil.color;
+		            }
+
+		            setNumberCode(srcE);
+
+		            if (tbl == "gridHR")
+		                convertToChar();
+		        };
+
+		        // calculate and set number code
+		        var setNumberCode = function (srcE) {
+		            var r = srcE.getAttribute("r");
+		            var tbl = srcE.getAttribute("tbl");
+		            var ncCol = srcE.getAttribute("macrocolumn");
+		            var tr = document.getElementById(tbl + '_' + r);
+
+		            var arrCols = [];
+		            var td, c, microColumn, bitShift;
+		            for (var i = 0; i < tr.childNodes.length; i++) {
+		                td = tr.childNodes[i];
+		                if (td.getAttribute("macrocolumn") == ncCol)
+		                    arrCols.push(td);
+		            }
+
+		            // set value of number code column to update
+		            var ncCell = document.getElementById(tbl + '_' + "nc" + '_' + r + '_' + ncCol);
+		            var ncCellVal = 0;
+		            var colValue = 0;
+		            for (var i = 0; i < arrCols.length; i++) {
+		                // bitwise calculus implementation
+		                td = arrCols[i];
+		                c = parseInt(td.getAttribute("c"));
+
+		                if (tbl == "gridLR") {
+		                    microColumn = (c - (microColLR * parseInt(ncCol)));
+		                    bitShift = (microColLR - 1) - microColumn;
+
+		                    if (td.getAttribute("paletteIdx") != 0)
+		                        colValue = (1 << bitShift);
+		                    else
+		                        colValue = (0 << bitShift);
+		                }
+
+		                if (tbl == "gridHR") {
+		                    microColumn = (c - (microColHR * parseInt(ncCol)));
+		                    bitShift = ((2 * (microColHR - 1)) - (2 * microColumn));
+		                    colValue = (zPad(td.getAttribute("paletteIdx"), 2) << bitShift);
+		                }
+
+		                ncCellVal = ncCellVal + colValue;
+		            }
+		            ("innerText" in ncCell) ? (ncCell.innerText = ncCellVal) : ncCell.textContent = ncCellVal;
+		        };
+
+		        // convert number codes to hexadecimal chars
+		        var convertToChar = function () {
+		            var txt = '';
+		            var txtChar = document.getElementById("txtChar");
+		            deleteEL(txtChar);
+		            var tbl = document.getElementById("gridHR");
+		            var arrTr = tbl.getElementsByTagName("tr");
+
+		            var tr, td, t, arrTd;
+		            for (var r = 0; r < arrTr.length; r++) {
+		                tr = arrTr[r];
+		                arrTd = tr.getElementsByTagName("td");
+
+		                for (var c = 0; c < arrTd.length; c++) {
+		                    td = arrTd[c];
+
+		                    if (td.getAttribute("colType") == "numberCode") {
+		                        ("innerText" in td) ? (t = td.innerText) : (t = td.textContent);
+		                        txt += zPad(Number(t).toString(16), 2).toUpperCase();
+		                    }
+		                }
+		            }
+
+		            txtChar.appendChild(document.createTextNode(txt));
+		        };
+
+		        // padding
+		        var zPad = function (num, count) {
+		            var n = num.toString();
+		            while (n.length < count) {
+		                n = "0" + n;
+		            }
+		            return n;
+		        };
+
+		        // draw sprite colors palette
+		        var drawSpritePalette = function (appendTo) {
+		            var tr, td;
+
+		            var objTable = document.getElementById("tblSpriteColors");
+		            if (objTable == null) {
+		                objTable = createEL({ tag: "table",
+		                    id: "tblSpriteColors",
+		                    appendTo: appendTo
+		                });
+		            }
+		            else
+		                deleteEL(objTable);
+
+		            tr = objTable.insertRow(-1);
+		            for (var c = 0; c < 4; c++) {
+		                td = tr.insertCell(-1);
+		                td.id = "tblSpriteColors_" + c;
+		                td.className = "palette";
+		                td.style.width = td.style.height = pixelSize * 2;
+		                td.style.background = SpritePalette[c].color;
+		                td.style.fontSize = pixelSize + "px";
+
+		                // bit value						
+		                if (c == 0) td.appendChild(document.createTextNode("00"));
+		                if (c == 1) td.appendChild(document.createTextNode("01"));
+		                if (c == 2) td.appendChild(document.createTextNode("10"));
+		                if (c == 3) td.appendChild(document.createTextNode("11"));
+
+		                td.onmouseup = (function (c) {
+		                    return function () {
+		                        //put color into pencil
+		                        pencil.index = c;
+		                        pencil.color = SpritePalette[c].color;
+		                    };
+		                })(c);
+		            }
+		        };
+
+		        // draw 16 colors palette
+		        var drawCompletePalette = function (appendTo) {
+		            var tr, td;
+
+		            var objTable = createEL({ tag: "table",
+		                id: "tblCompleteColors",
+		                appendTo: appendTo
+		            });
+
+		            tr = objTable.insertRow(-1);
+
+		            for (var c = 1; c < arrColors.length; c++) {
+		                td = tr.insertCell(-1);
+		                td.className = "palette";
+		                td.style.width = td.style.height = pixelSize * 2;
+		                td.style.background = arrColors[c];
+
+		                // copy color into the first free slot of sprite palette
+		                td.onmouseup = (function (val) {
+		                    return function () { setSpriteColors(val) };
+		                })(arrColors[c]);
+		            }
+
+		            // set sprite colors palette
+		            var setSpriteColors = function (color) {
+		                // first slot will always be "transparent"
+		                for (var i = 1; i < SpritePalette.length; i++) {
+		                    if (!SpritePalette[i].set) {
+		                        SpritePalette[i].set = true;
+		                        SpritePalette[i].color = color;
+		                        break;
+		                    }
+
+		                    if (i == SpritePalette.length - 1) {
+		                        // reset sprite colors palette
+		                        for (var i = 1; i < SpritePalette.length; i++) {
+		                            SpritePalette[i].set = false;
+		                        }
+
+		                        setSpriteColors(color);
+		                    }
+		                }
+
+		                drawSpritePalette();
+		            };
+		        };
+
+		        // element creation functions
+		        var createEL = function (atr) {
+		            var el = document.createElement(atr.tag);
+		            el.id = atr.id;
+
+		            if (atr.cls) el.className = atr.cls;
+		            if (atr.type) el.type = atr.type;
+		            if (atr.val) el.value = atr.val;
+		            if (atr.onmouseup) el.onmouseup = atr.onmouseup;
+
+		            atr.appendTo.appendChild(el);
+		            return el;
+		        };
+
+		        // element removal functions
+		        var deleteEL = function (objParent) {
+		            while (objParent.hasChildNodes())
+		                objParent.removeChild(objParent.lastChild);
+		        };
+
+
+		        // <<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>
+		        //	Implementation code
+		        // <<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>
+		        // draw elements on page
+		        var drawElements = (function () {
+
+		            // buttons container
+		            var btnContainer = createEL({ tag: "div",
+		                id: "btnContainer",
+		                appendTo: body
+		            });
+
+		            // reser LR button
+		            createEL({ tag: "input",
+		                id: "btnResetLR",
+		                appendTo: btnContainer,
+		                cls: "button",
+		                type: "button",
+		                val: "reset LR",
+		                onmouseup: function () {
+		                    deleteEL(document.getElementById("gridLR"));
+		                    drawBitGrid("gridLR", rowsLR, colsLR);
+		                }
+		            });
+
+		            // reset HR button
+		            createEL({ tag: "input",
+		                id: "btnResetHR",
+		                appendTo: btnContainer,
+		                cls: "button",
+		                type: "button",
+		                val: "reset HR",
+		                onmouseup: function () {
+		                    deleteEL(document.getElementById("gridHR"));
+		                    drawBitGrid("gridHR", rowsHR, colsHR);
+		                }
+		            });
+
+		            // reset all button					
+		            createEL({ tag: "input",
+		                id: "btnResetAll",
+		                appendTo: btnContainer,
+		                cls: "button",
+		                type: "button",
+		                val: "reset all",
+		                onmouseup: function () {
+		                    deleteEL(document.getElementById("gridLR"));
+		                    drawBitGrid("gridLR", rowsLR, colsLR);
+
+		                    deleteEL(document.getElementById("gridHR"));
+		                    drawBitGrid("gridHR", rowsHR, colsHR);
+		                }
+		            });
+
+		            // grid container
+		            var gridContainer = createEL({ tag: "div",
+		                id: "gridContainer",
+		                appendTo: body
+		            });
+
+		            // LR grid
+		            drawBitGrid("gridLR", rowsLR, colsLR, gridContainer);
+
+		            // HR grid
+		            drawBitGrid("gridHR", rowsHR, colsHR, gridContainer);
+
+		            // palette container
+		            var paletteContainer = createEL({ tag: "div",
+		                id: "paletteContainer",
+		                appendTo: body
+		            });
+
+		            // sprite colors palette
+		            drawSpritePalette(paletteContainer);
+
+		            // 16 colors palette
+		            drawCompletePalette(paletteContainer);
+
+		            // textarea container
+		            var txtContainer = createEL({ tag: "div",
+		                id: "txtContainer",
+		                appendTo: body
+		            });
+
+		            // sprite string textarea
+		            var txtChar = createEL({ tag: "div",
+		                id: "txtChar",
+		                appendTo: txtContainer
+		            });
+
+		        } ());
+
+		    };
+			
+		</script>
+  </head>	
+	<body></body>
+</html>
