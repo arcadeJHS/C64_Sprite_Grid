@@ -1,5 +1,5 @@
 <html>
-                    <head>
+	<head>
 		<title>Sprite Chart</title>
 		<style type="text/css">
 			* {margin: 0; padding: 0;}
@@ -27,7 +27,7 @@
 		        //	Architectural code
 		        // <<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>><<>>			
 		        // 16 colors C64 palette + transparency
-		        var arrColors = ["transparent",
+		        var arrColors = [   "transparent",
 								    "rgb(0,0,0)",
 								    "rgb(255,255,255)",
 								    "rgb(104,55,43)",
@@ -166,15 +166,33 @@
 		            var srcE = e.srcElement ? e.srcElement : e.target;
 		            var tbl = srcE.getAttribute("tbl");
 
-		            // if color picked same as cell => transparent
-		            if (pencil.index == srcE.getAttribute("paletteIdx")) {
-		                srcE.setAttribute("paletteIdx", 0);
-		                srcE.style.background = arrColors[0];
-		            }
-		            else {
-		                srcE.setAttribute("paletteIdx", pencil.index);
-		                srcE.style.background = pencil.color;
-		            }
+					switch (tbl)
+					{
+						case "gridLR":
+							if (srcE.style.background == arrColors[1])
+							{
+								srcE.setAttribute("paletteIdx", 0);
+								srcE.style.background = arrColors[0];
+							}
+							else
+							{
+								srcE.setAttribute("paletteIdx", 1);
+								srcE.style.background = arrColors[1];
+							}
+							break;
+					
+						case "gridHR":
+							// if color picked same as cell => transparent
+							if (pencil.index == srcE.getAttribute("paletteIdx")) {
+								srcE.setAttribute("paletteIdx", 0);
+								srcE.style.background = arrColors[0];
+							}
+							else {
+								srcE.setAttribute("paletteIdx", pencil.index);
+								srcE.style.background = pencil.color;
+							}
+							break;
+					}
 
 		            setNumberCode(srcE);
 
@@ -256,9 +274,7 @@
 		        // padding
 		        var zPad = function (num, count) {
 		            var n = num.toString();
-		            while (n.length < count) {
-		                n = "0" + n;
-		            }
+		            while (n.length < count) n = "0" + n;
 		            return n;
 		        };
 
