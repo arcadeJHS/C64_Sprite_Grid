@@ -169,7 +169,7 @@
 					switch (tbl)
 					{
 						case "gridLR":
-							if (srcE.style.background == arrColors[1])
+							if (srcE.getAttribute("paletteIdx") == 1)
 							{
 								srcE.setAttribute("paletteIdx", 0);
 								srcE.style.background = arrColors[0];
